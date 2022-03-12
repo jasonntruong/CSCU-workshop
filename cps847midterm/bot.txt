@@ -1,0 +1,73 @@
+import logging
+import os
+
+from dotenv import load_dotenv
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+
+load_dotenv()
+
+SLACK_APP_TOKEN = os.environ["SLACK_APP_TOKEN"]
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+print(SLACK_APP_TOKEN)
+SLACK_BOT_NAME = "Bot Edit"
+BOT_ID = "<@U036T0N13PU>"
+app = App(token=SLACK_BOT_TOKEN, name=SLACK_BOT_NAME)
+
+def removeMention(text):
+    words = text.split(" ")
+    removed = ""
+
+    for i in range(len(words)):
+        if i != 0:
+            removed += words[i] + " "
+    return removed[:-1]
+
+def sendMsg(client, channel, user, text):
+    msg = {
+        "ts": "",
+        "channel": channel,
+        "username": user,
+        "text": "noText",
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": text
+                }
+            }
+        ]
+    }
+            
+    client.chat_postMessage(**msg)
+    logger.info("\"" + msg["blocks"][0]["text"]["text"] + "\" was sent to " + channel + "\n")
+
+
+@app.event("app_mention")
+def message(event, client):
+    channel_id = event.get("channel")
+    user_id = event.get("user")
+    text = event.get("text")
+    logger.info(text)
+    if text[0:14] == BOT_ID and text[-1] == "?":
+        logger.info("Recieved \"" + text + "\" from User " + user_id + " in Channel " + channel_id)
+        sendMsg(client, channel_id, user_id, removeMention(text))
+
+@app.event("message")
+def message(event, client):
+    channel_id = event.get("channel")
+    user_id = event.get("user")
+    text = event.get("text")
+    
+    if text[-1] == "?":
+        logger.info("Recieved \"" + text + "\" from User " + user_id + " in Direct Message " + channel_id)
+        sendMsg(client, channel_id, user_id, text)
+
+if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(logging.StreamHandler())
+
+    handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+    handler.start()
